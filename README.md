@@ -16,7 +16,6 @@ Now you can use it too!... In case you just happened to be browsing GitHub for a
 1- Create a JSON file named `config.json` with your Rubrik Security Cloud (RSC) and RSC Service Account information like in the example below and add it inside `configuration` folder:
 
 ```json
-```json
 {
  "client_id": "your_client_id",
  "client_secret": "your_client_secret",
