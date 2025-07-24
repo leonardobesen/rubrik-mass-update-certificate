@@ -1,11 +1,15 @@
 # rubrik-mass-update-certificate
 
-If ever had to update certificate for 100+ hosts you know how painful and waste of time it is. So, instead of spending 20 minutes of my precious time updating the certificate of 100 or so hosts I spent 1 hour making this script to do that for me. Now you can use that too, if by any chance you were browsing GitHub for a script that does that, however likely this situation is I wouldn't know.
+If you've ever had to update certificates for 100+ hosts, you know how painful and time-consuming it can be. So, instead of wasting 20 minutes of my precious time updating each certificate manually, I spent an hour writing this script to do it for me.
+
+Now you can use it too!... In case you just happened to be browsing GitHub for a script that does exactly this. How likely that is, I wouldn’t know.
 
 ## Dependencies
 
 - Python >= 3.12.5
 - tqdm
+- requests
+- pandas
 
 ## How to use it
 
