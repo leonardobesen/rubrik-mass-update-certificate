@@ -31,7 +31,7 @@ def run_update_certificate(access_token: str, csv_path: str) -> list[Host]:
             host_dict = response.get("data", {}).get("bulkUpdateHost", {}).get(
             "output", {}).get("items")[0].get("hostSummary", {})
         except:
-            print("ERROR: Unable to run command for host ID {host}")
+            print(f"ERROR: Unable to run command for host ID {host}")
             continue
 
         if host_dict:
