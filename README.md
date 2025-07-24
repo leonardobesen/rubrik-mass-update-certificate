@@ -1,14 +1,12 @@
 # rubrik-mass-update-certificate
 
 If ever had to update certificate for 100+ hosts you know how painful and waste of time it is. So, instead of spending 20 minutes of my precious time updating the certificate of 100 or so hosts I spent 1 hour making this script to do that for me. Now you can use that too, if by any chance you were browsing GitHub for a script that does that, however likely this situation is I wouldn't know.
-If ever had to update certificate for 100+ hosts you know how painful and waste of time it is. So, instead of spending 20 minutes of my precious time updating the certificate of 100 or so hosts I spent 1 hour making this script to do that for me. Now you can use that too, if by any chance you were browsing GitHub for a script that does that, however likely this situation is I wouldn't know.
 
 ## Dependencies
 
-- Python >= 3.11
-- pandas
+- Python >= 3.12.5
+- tqdm
 
-## How to use it
 ## How to use it
 
 1- Create a JSON file named `config.json` with your Rubrik Security Cloud (RSC) and RSC Service Account information like in the example below and add it inside `configuration` folder:
