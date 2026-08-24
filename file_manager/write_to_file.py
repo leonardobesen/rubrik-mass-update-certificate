@@ -1,33 +1,65 @@
-import pandas as pd
+import csv
 import os
+from typing import Iterable, Optional, List, Tuple, Any
 from datetime import datetime
-from configuration.configuration import get_report_dir
-from model.hosts import Host
 
 
-def _create_empty_file(report_name: str) -> str:
-    # Get current datetime formatted
-    now = datetime.now().strftime("%d-%m-%Y_%H_%M_%S")
-    # Filename for your reports
-    file_name = f'{report_name}_{now}.csv'
-    report_path = os.path.join(get_report_dir(), file_name)
+def generate_report(name: str, hosts: Any, errors: Optional[List[Tuple[str, str]]] = None, out_dir: str | None = None) -> str:
+    """Write a timestamped .log file with execution info and errors.
 
-    return report_path
+    - `hosts` should be an iterable of objects with `id` and `name` attributes.
+    - `errors` is an optional list of `(host_id, message)` tuples.
 
+    Returns the path to the generated log file.
+    """
+    # Normalize hosts to a list that we can iterate safely.
+    if hosts is None:
+        hosts_list = []
+    elif isinstance(hosts, (str, bytes)):
+        # Treat a string/bytes as a single host identifier rather than an iterable of chars
+        hosts_list = [hosts]
+    elif hasattr(hosts, "id") and hasattr(hosts, "name"):
+        hosts_list = [hosts]
+    else:
+        try:
+            hosts_list = list(hosts)
+        except Exception:
+            hosts_list = [hosts]
 
-def generate_report(report_name: str, hosts: list[Host]) -> str:
-    REPORT_FILE = _create_empty_file(report_name)
+    if out_dir is None:
+        out_dir = os.path.join(os.getcwd(), "reports")
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"{name}.log")
 
-    # Directly write CSV data
-    write_linux_host_data(REPORT_FILE, hosts)
+    now = datetime.utcnow().isoformat() + "Z"
 
-    return REPORT_FILE
+    with open(path, "w", newline="") as fh:
+        fh.write(f"Execution time (UTC): {now}\n")
+        fh.write("= Summary =\n")
+        success_count = 0
+        for h in hosts_list:
+            hid = getattr(h, "id", None)
+            hname = getattr(h, "name", None)
+            if hid is None and isinstance(h, (str, bytes)):
+                # If caller passed a hostname string, use it as the name
+                hname = str(h)
+            if hid is None:
+                hid_str = "UNKNOWN"
+            else:
+                hid_str = str(hid)
+            if hname is None:
+                hname_str = "UNKNOWN"
+            else:
+                hname_str = str(hname)
+            fh.write(f"SUCCESS: {datetime.utcnow().isoformat()} - id={hid_str} name={hname_str}\n")
+            success_count += 1
+        fh.write(f"Total successful updates: {success_count}\n")
 
+        fh.write("\n= Errors =\n")
+        if errors:
+            for hid, msg in errors:
+                fh.write(f"ERROR: {datetime.utcnow().isoformat()} - host_id={hid} - {msg}\n")
+        else:
+            fh.write("No errors reported.\n")
 
-def write_linux_host_data(csv_path: str, linuxhosts: list[Host]) -> None:
-    df = pd.DataFrame([{
-        'Id': host.id,
-        'Hostname': host.name
-    } for host in linuxhosts])
-
-    df.to_csv(csv_path, index=False)
+    return path

@@ -1,19 +1,21 @@
 # rubrik-mass-update-certificate
 
-If you've ever had to update certificates for 100+ hosts, you know how painful and time-consuming it can be. So, instead of wasting 20 minutes of my precious time updating each certificate manually, I spent an hour writing this script to do it for me.
+If you've ever had to update certificates for 100+ hosts, you know how painful and time-consuming it can be. So, instead of wasting 20 minutes of my precious time updating each certificate manually, I spent an hour writing this script to do it for me. Then spent 30 more minutes to have it completely refactored by AI.
 
 Now you can use it too!... In case you just happened to be browsing GitHub for a script that does exactly this. How likely that is, I wouldn’t know.
 
 ## Dependencies
 
-- Python >= 3.12.5
-- tqdm
-- requests
-- pandas
+- Python >= 3.12
+- Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## How to use it
 
-1- Create a JSON file named `config.json` with your Rubrik Security Cloud (RSC) and RSC Service Account information like in the example below and add it inside `configuration` folder:
+1. Create a JSON file named `config.json` with your Rubrik Security Cloud (RSC) and service account information and place it inside the `configuration` folder.
 
 ```json
 {
@@ -30,89 +32,25 @@ Now you can use it too!... In case you just happened to be browsing GitHub for a
 }
 ```
 
-3- Download this repository and place in a computer or server that has access to your Rubrik RSC.
+2. Clone this repository to a machine with network access to your Rubrik RSC.
 
-4- Create a CSV files named `host_ids.csv` (with just 1 column and without headers).
+3. Create a CSV file with hostnames (one per row) — the script reads the first column and will skip common header names (`hostname`, `host`, `name`).
 
-5- Add to `host_ids.csv` all the host ids of the hosts you want to execute this command. You may use this GraphQL query on your RSC playground to easy get that list:
-3- Download this repository and place in a computer or server that has access to your Rubrik RSC.
+4. You can run the script in dry-run mode to verify host resolution without changing anything:
 
-4- Create a CSV files named `host_ids.csv` (with just 1 column and without headers).
-
-5- Add to `host_ids.csv` all the host ids of the hosts you want to execute this command. You may use this GraphQL query on your RSC playground to easy get that list:
-
-```graphql
-query PhysicalHostListQuery($hostRoot: HostRoot!,
-  $sortBy: HierarchySortByField,
-  $sortOrder: SortOrder, 
-  $filter: [Filter!]!) {
-  physicalHosts(
-    hostRoot: $hostRoot
-    filter: $filter
-    sortBy: $sortBy
-    sortOrder: $sortOrder
-  ) {
-    nodes {
-      id
-    }
-  }
-}
+```bash
+python main.py --csv path/to/hosts.csv --dry-run
 ```
 
-Parameters:
+5. To actually perform the updates and produce a report:
 
-```json
-{
-  "hostRoot": "LINUX_HOST_ROOT",
-  "filter": [
-    {
-      "field": "CLUSTER_ID",
-      "texts": [
-        "YOUR CLUSTER UUID HERE"
-      ]
-    },
-    {
-      "field": "IS_RELIC",
-      "texts": [
-        "false"
-      ]
-    },
-    {
-      "field": "IS_REPLICATED",
-      "texts": [
-        "false"
-      ]
-    },
-    {
-      "field": "PHYSICAL_HOST_CONNECTION_STATUS",
-      "texts": [
-        "Disconnected"
-      ]
-    },
-    {
-      "field": "IS_KUPR_HOST",
-      "texts": [
-        "false"
-      ]
-    }
-  ],
-  "sortBy": "NAME",
-  "sortOrder": "ASC",
-  "childFilter": [
-    {
-      "field": "IS_GHOST",
-      "texts": [
-        "false"
-      ]
-    },
-    {
-      "field": "IS_RELIC",
-      "texts": [
-        "false"
-      ]
-    }
-  ]
-}
+```bash
+python main.py --csv path/to/hosts.csv
 ```
 
-4- Run main.py
+### Notes
+
+- The script resolves hostnames for both Windows and Linux roots and deduplicates host ids before performing the update.
+- Use `--dry-run` to validate the CSV and see which host ids would be updated.
+
+If you want help adding unit tests or CI for this project, I can scaffold a simple `pytest` suite.
