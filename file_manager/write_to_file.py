@@ -1,39 +1,85 @@
-import csv
+import logging
 import os
-from typing import Iterable, Optional, List, Tuple, Any
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Iterable, List, Optional, Tuple
+
+
+def configure_logger(log_path: str | None = None, console: bool = False, level: int = logging.INFO) -> logging.Logger:
+    """Create a reusable logger that writes to a file and optionally stderr.
+
+    Console output is disabled by default so tqdm can render a clean progress bar
+    without mixing log lines and redraws.
+    """
+    logger = logging.getLogger("rubrik_mass_update")
+    logger.setLevel(level)
+    logger.propagate = False
+
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
+
+    if log_path is None:
+        reports_dir = Path.cwd() / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        log_path = str(reports_dir / "rubrik_mass_update.log")
+
+    log_file = Path(log_path)
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    if console:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+
+    return logger
+
+
+def close_logger(logger: logging.Logger | None = None) -> None:
+    """Close all handlers for the configured logger."""
+    logger = logger or logging.getLogger("rubrik_mass_update")
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.flush()
+        handler.close()
+
+
+def _normalize_hosts(hosts: Any) -> list[Any]:
+    if hosts is None:
+        return []
+    if isinstance(hosts, (str, bytes)):
+        return [hosts]
+    if hasattr(hosts, "id") and hasattr(hosts, "name"):
+        return [hosts]
+    try:
+        return list(hosts)
+    except TypeError:
+        return [hosts]
 
 
 def generate_report(name: str, hosts: Any, errors: Optional[List[Tuple[str, str]]] = None, out_dir: str | None = None) -> str:
-    """Write a timestamped .log file with execution info and errors.
+    """Write a timestamped log file with execution info and errors.
 
     - `hosts` should be an iterable of objects with `id` and `name` attributes.
     - `errors` is an optional list of `(host_id, message)` tuples.
 
     Returns the path to the generated log file.
     """
-    # Normalize hosts to a list that we can iterate safely.
-    if hosts is None:
-        hosts_list = []
-    elif isinstance(hosts, (str, bytes)):
-        # Treat a string/bytes as a single host identifier rather than an iterable of chars
-        hosts_list = [hosts]
-    elif hasattr(hosts, "id") and hasattr(hosts, "name"):
-        hosts_list = [hosts]
-    else:
-        try:
-            hosts_list = list(hosts)
-        except Exception:
-            hosts_list = [hosts]
+    hosts_list = _normalize_hosts(hosts)
 
-    if out_dir is None:
-        out_dir = os.path.join(os.getcwd(), "reports")
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, f"{name}.log")
+    report_dir = Path(out_dir) if out_dir is not None else Path.cwd() / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    path = report_dir / f"{name}.log"
 
-    now = datetime.utcnow().isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat()
 
-    with open(path, "w", newline="") as fh:
+    with path.open("w", encoding="utf-8", newline="") as fh:
         fh.write(f"Execution time (UTC): {now}\n")
         fh.write("= Summary =\n")
         success_count = 0
@@ -41,25 +87,18 @@ def generate_report(name: str, hosts: Any, errors: Optional[List[Tuple[str, str]
             hid = getattr(h, "id", None)
             hname = getattr(h, "name", None)
             if hid is None and isinstance(h, (str, bytes)):
-                # If caller passed a hostname string, use it as the name
                 hname = str(h)
-            if hid is None:
-                hid_str = "UNKNOWN"
-            else:
-                hid_str = str(hid)
-            if hname is None:
-                hname_str = "UNKNOWN"
-            else:
-                hname_str = str(hname)
-            fh.write(f"SUCCESS: {datetime.utcnow().isoformat()} - id={hid_str} name={hname_str}\n")
+            hid_str = str(hid) if hid is not None else "UNKNOWN"
+            hname_str = str(hname) if hname is not None else "UNKNOWN"
+            fh.write(f"SUCCESS: {datetime.now(timezone.utc).isoformat()} - id={hid_str} name={hname_str}\n")
             success_count += 1
         fh.write(f"Total successful updates: {success_count}\n")
 
         fh.write("\n= Errors =\n")
         if errors:
             for hid, msg in errors:
-                fh.write(f"ERROR: {datetime.utcnow().isoformat()} - host_id={hid} - {msg}\n")
+                fh.write(f"ERROR: {datetime.now(timezone.utc).isoformat()} - host_id={hid} - {msg}\n")
         else:
             fh.write("No errors reported.\n")
 
-    return path
+    return str(path)

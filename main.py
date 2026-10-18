@@ -1,9 +1,10 @@
+import argparse
+import os
+
 import connection.connect as connect
 import file_manager.write_to_file as write_to_csv
-from controller import controller
 from configuration.configuration import get_report_dir
-import os
-import argparse
+from controller import controller
 
 
 def _parse_args() -> argparse.Namespace:
@@ -26,25 +27,33 @@ def _parse_args() -> argparse.Namespace:
 
 if __name__ == '__main__':
     args = _parse_args()
+    logger = write_to_csv.configure_logger(console=False)
 
-    # Establish connection with Rubrik RSC
-    rsc_access_token = connect.open_session()
+    try:
+        rsc_access_token = connect.open_session()
 
-    if args.csv_path:
-        csv_path = args.csv_path
-    else:
-        csv_path = os.path.join(get_report_dir(), 'hosts.csv')
+        if args.csv_path:
+            csv_path = args.csv_path
+        else:
+            csv_path = os.path.join(get_report_dir(), 'hosts.csv')
 
-    hosts, errors = controller.run_update_certificate(
-        access_token=rsc_access_token,
-        csv_path=csv_path
-    )
+        logger.info("Starting certificate update run using CSV: %s", csv_path)
 
-    if not args.dry_run:
-        try:
-            write_to_csv.generate_report("updated_certificates", hosts, errors=errors)
-        except Exception as e:
-            print(f"WARNING: Unable to write report: {e}")
+        hosts, errors = controller.run_update_certificate(
+            access_token=rsc_access_token,
+            csv_path=csv_path,
+            logger=logger,
+        )
 
-    # Close session
-    connect.close_session(rsc_access_token)
+        if args.dry_run:
+            logger.info("Dry run completed without making certificate updates.")
+        else:
+            try:
+                report_path = write_to_csv.generate_report("updated_certificates", hosts, errors=errors)
+                logger.info("Updated certificate report written to: %s", report_path)
+            except Exception as exc:
+                logger.warning("Unable to write report: %s", exc)
+    finally:
+        if 'rsc_access_token' in locals():
+            connect.close_session(rsc_access_token)
+        write_to_csv.close_logger(logger)
